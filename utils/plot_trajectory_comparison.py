@@ -75,6 +75,7 @@ def main():
     parser.add_argument("--est", required=True)
     parser.add_argument("--gt",  required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--label", default="", help="Label appended to output filenames, e.g. log01 or log02")
     args = parser.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -125,7 +126,8 @@ def main():
     ax.legend()
     ax.set_aspect("equal")
     ax.grid(True, alpha=0.3)
-    out_traj = os.path.join(args.out, "trajectory_comparison.png")
+    suffix = f"_{args.label}" if args.label else ""
+    out_traj = os.path.join(args.out, f"trajectory_comparison{suffix}.png")
     fig.savefig(out_traj, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\nSaved: {out_traj}")
@@ -144,7 +146,7 @@ def main():
     ax.set_title("Absolute Trajectory Error over Time")
     ax.legend()
     ax.grid(True, alpha=0.3)
-    out_ate = os.path.join(args.out, "ate_over_time.png")
+    out_ate = os.path.join(args.out, f"ate_over_time{suffix}.png")
     fig.savefig(out_ate, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out_ate}")

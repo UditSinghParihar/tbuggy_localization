@@ -65,19 +65,13 @@ def convert_gt_to_tum(gt_csv_path: str, tum_path: str):
     return len(rows)
 
 
-def run_evo(est_tum: str, gt_tum: str, out_dir: str):
+def run_evo(est_tum: str, gt_tum: str):
     """Run evo_ape and evo_rpe with SE3 alignment."""
-    plot_ape = os.path.join(out_dir, "evo_ape_plot.png")
-    plot_rpe = os.path.join(out_dir, "evo_rpe_plot.png")
-    plot_traj = os.path.join(out_dir, "evo_traj_plot.png")
-
     print("\n--- ATE (Absolute Trajectory Error) ---")
     subprocess.run([
         "evo_ape", "tum", gt_tum, est_tum,
         "--align",          # SE3 alignment (rotation + translation)
         "--correct_scale",  # monocular VIO has unknown scale
-        "--plot_mode", "xy",
-        "--save_plot", plot_ape,
         "--verbose",
     ], check=False)
 
@@ -88,8 +82,6 @@ def run_evo(est_tum: str, gt_tum: str, out_dir: str):
         "--correct_scale",
         "--delta", "10",
         "--delta_unit", "m",
-        "--plot_mode", "xy",
-        "--save_plot", plot_rpe,
         "--verbose",
     ], check=False)
 
@@ -99,14 +91,7 @@ def run_evo(est_tum: str, gt_tum: str, out_dir: str):
         "--ref", gt_tum,
         "--align",
         "--correct_scale",
-        "--plot_mode", "xy",
-        "--save_plot", plot_traj,
     ], check=False)
-
-    print(f"\nPlots saved to: {out_dir}")
-    print(f"  {plot_ape}")
-    print(f"  {plot_rpe}")
-    print(f"  {plot_traj}")
 
 
 def main():
@@ -114,12 +99,14 @@ def main():
     parser.add_argument("--est", required=True, help="OpenVINS estimate txt file")
     parser.add_argument("--gt",  required=True, help="GT ASL CSV file (from extract_gt_csv.py)")
     parser.add_argument("--out", required=True, help="Output directory for TUM files and plots")
+    parser.add_argument("--label", default="", help="Label appended to TUM filenames, e.g. log01 or log02")
     args = parser.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
 
-    est_tum = os.path.join(args.out, "est_tum.txt")
-    gt_tum  = os.path.join(args.out, "gt_tum.txt")
+    suffix = f"_{args.label}" if args.label else ""
+    est_tum = os.path.join(args.out, f"est_tum{suffix}.txt")
+    gt_tum  = os.path.join(args.out, f"gt_tum{suffix}.txt")
 
     print("Converting to TUM format...")
     n_est = convert_est_to_tum(args.est, est_tum)
@@ -130,7 +117,7 @@ def main():
         print("ERROR: Too few estimate poses — run OpenVINS first.")
         sys.exit(1)
 
-    run_evo(est_tum, gt_tum, args.out)
+    run_evo(est_tum, gt_tum)
 
 
 if __name__ == "__main__":
