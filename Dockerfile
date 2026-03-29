@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     libgflags-dev \
     libatlas-base-dev \
     libsuitesparse-dev \
+    ros-humble-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Layer 2: Python packages ─────────────────────────────────────────────────

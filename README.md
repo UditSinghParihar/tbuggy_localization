@@ -30,13 +30,13 @@ The scripts guide you through each step interactively. Results are saved to `./o
 
 > **Note:** The bag directory must contain `log_01_ros2/` and `log_02_ros2/` subdirectories.
 
-> **RViz (Linux only):** Before running the OpenVINS launch command printed in Step 2, run `xhost +local:docker` once in your terminal to allow the container to open a display window. The helper scripts already include `-e DISPLAY -v /tmp/.X11-unix` in the printed command.
+> **RViz (Linux only):** Before running the OpenVINS launch command printed in Step 2, run `xhost +local:docker` once in your terminal to allow the container to open a display window.
 
 ---
 
 ## Manual Setup (without Docker)
 
-#- Ubuntu 22.04
+- Ubuntu 22.04
 - ROS2 Humble
 - OpenCV, Eigen3, Ceres (standard ROS2 desktop + VIO dependencies)
 

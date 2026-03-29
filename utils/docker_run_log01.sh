@@ -48,6 +48,7 @@ echo ""
 # ── Step 1: Extract ground truth CSV ─────────────────────────────────────────
 echo "[Step 1/4] Extracting ground truth CSV from bag..."
 docker run --rm \
+    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
     -v "$BAG_DIR":/data \
     -v "$OUT_DIR":/colcon_ws/utils/results \
     "$IMAGE" \
@@ -64,6 +65,8 @@ echo "  # Allow Docker to access your X display (run once per session):"
 echo "  xhost +local:docker"
 echo ""
 echo "  docker run --rm -it --network=host \\"
+echo "    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \\"
+echo "    -e ROS_DOMAIN_ID=0 \\"
 echo "    -e DISPLAY=\$DISPLAY \\"
 echo "    -v /tmp/.X11-unix:/tmp/.X11-unix \\"
 echo "    -v \"$BAG_DIR\":/data \\"
@@ -80,6 +83,8 @@ echo ""
 echo "[Step 3/4] Open TERMINAL B and run this command to play the bag:"
 echo ""
 echo "  docker run --rm -it --network=host \\"
+echo "    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \\"
+echo "    -e ROS_DOMAIN_ID=0 \\"
 echo "    -v \"$BAG_DIR\":/data \\"
 echo "    $IMAGE \\"
 echo "    ros2 bag play /data/log_01_ros2 --clock --rate 1.0"
@@ -93,6 +98,7 @@ read -r
 
 echo "Running evaluation and generating plots..."
 docker run --rm \
+    -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
     -v "$OUT_DIR":/colcon_ws/utils/results \
     "$IMAGE" \
     bash -c "
