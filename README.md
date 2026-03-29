@@ -6,16 +6,44 @@ Results, evaluation plots, and full methodology are documented in [`utils/docume
 
 ---
 
-## Requirements
+## Quickstart — Docker (Recommended)
 
-- Ubuntu 22.04
-- ROS2 Humble
-- OpenCV, Eigen3, Boost (standard ROS2 desktop dependencies)
+The easiest way to reproduce results. Requires only Docker + the bag files.
 
 ```bash
-sudo apt install ros-humble-desktop ros-humble-rviz2 \
-  libopencv-dev libeigen3-dev
-pip install rosbags evo
+# Pull the pre-built image (~3-4 GB download)
+docker pull uditsinghparihar/tbuggy_vio:latest
+
+# Clone this repo to get the helper scripts
+git clone https://github.com/UditSinghParihar/tbuggy_localization.git colcon_ws_tii
+cd colcon_ws_tii
+chmod +x utils/docker_run_log01.sh utils/docker_run_log02.sh
+
+# Run log_01 (provide path to your bag directory)
+./utils/docker_run_log01.sh /path/to/bags ./output
+
+# Run log_02
+./utils/docker_run_log02.sh /path/to/bags ./output
+```
+
+The scripts guide you through each step interactively. Results are saved to `./output/` on your host.
+
+> **Note:** The bag directory must contain `log_01_ros2/` and `log_02_ros2/` subdirectories.
+
+> **RViz (Linux only):** Before running the OpenVINS launch command printed in Step 2, run `xhost +local:docker` once in your terminal to allow the container to open a display window. The helper scripts already include `-e DISPLAY -v /tmp/.X11-unix` in the printed command.
+
+---
+
+## Manual Setup (without Docker)
+
+#- Ubuntu 22.04
+- ROS2 Humble
+- OpenCV, Eigen3, Ceres (standard ROS2 desktop + VIO dependencies)
+
+```bash
+sudo apt install ros-humble-desktop libceres-dev \
+  libgoogle-glog-dev libgflags-dev libatlas-base-dev libsuitesparse-dev
+pip install rosbags evo matplotlib numpy
 ```
 
 ---
@@ -82,7 +110,7 @@ ros2 launch ov_msckf subscribe.launch.py \
 ### Step 3 — Terminal 2: Play bag
 
 ```bash
-ros2 bag play /home/udit/data/log_01_ros2 --clock --rate 0.5
+ros2 bag play /home/udit/data/log_01_ros2 --clock --rate 1.0
 ```
 
 For log_02, replace `log01` → `log02` in `filepath_est`, `path_gt`, and the bag path.
@@ -97,13 +125,17 @@ After the run completes:
 python3 utils/evaluate_trajectory.py \
   --est utils/results/ov_estimate_log01.txt \
   --gt  utils/results/gt_log01.csv \
-  --out utils/results/
+  --out utils/results/ \
+  --label log01
 
 python3 utils/plot_trajectory_comparison.py \
-  --est utils/results/est_tum.txt \
-  --gt  utils/results/gt_tum.txt \
-  --out utils/results/
+  --est utils/results/est_tum_log01.txt \
+  --gt  utils/results/gt_tum_log01.txt \
+  --out utils/results/ \
+  --label log01
 ```
+
+For log_02 replace `log01` → `log02` throughout.
 
 ---
 
