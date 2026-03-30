@@ -2,6 +2,18 @@
 
 ---
 
+## Assignment Report
+
+**File:** `colcon_ws_tii/assignment_solution.tex` → compiled to `assignment_solution.pdf` (8 pages)
+
+**Build:** run `pdflatex assignment_solution.tex` from inside `colcon_ws_tii/`.
+
+**TODO placeholders in the LaTeX:**
+- Section 4.2 (log_01 Results): Insert RViz2 screenshot as `utils/results/rviz_log01.png` — shows feature tracks + live path vs GT.
+- Section 4.3 (log_02 Results): Optional video/GIF placeholder — uncomment the `\href{}{}` block and link/embed the file.
+
+---
+
 ## Utility Scripts
 
 | Script | Purpose | Run |
