@@ -1,24 +1,79 @@
 #!/bin/bash
 # docker_run_log02.sh — Reproduce log_02 results inside the tbuggy_vio Docker container.
 #
-# Usage:
+# Usage (ROS1 bag file):
+#   ./utils/docker_run_log02.sh /path/to/log_02.bag [output_dir]
+#
+# Usage (already-converted ROS2 bag directory):
 #   ./utils/docker_run_log02.sh /path/to/bags [output_dir]
 #
 # Example:
-#   ./utils/docker_run_log02.sh /home/reviewer/data ./output
+#   ./utils/docker_run_log02.sh /home/reviewer/data/log_02.bag ./output
 #
 # Same config as log_01 (no re-tuning) — robustness check per assignment requirement.
+# If a ROS1 .bag file is provided the script converts it to ROS2 format automatically.
 
 set -e
 
 IMAGE="uditsinghparihar/tbuggy_vio:latest"
-BAG_DIR="${1:-}"
+INPUT="${1:-}"
 OUT_DIR="${2:-$(pwd)/output}"
+# Resolve the utils/ directory next to this script so updated Python scripts
+# are mounted into the container (no image rebuild needed after script changes).
+UTILS_DIR="$(dirname "$(realpath "$0")")"
 
-if [ -z "$BAG_DIR" ]; then
-    echo "Usage: $0 /path/to/bags [output_dir]"
-    echo "  /path/to/bags must contain log_02_ros2/ subdirectory"
+if [ -z "$INPUT" ]; then
+    echo "Usage: $0 /path/to/log_02.bag [output_dir]"
+    echo "       $0 /path/to/bags       [output_dir]"
+    echo ""
+    echo "  /path/to/log_02.bag — ROS1 bag file (auto-converted to ROS2 format)"
+    echo "  /path/to/bags       — directory containing log_02_ros2/ subdirectory"
     exit 1
+fi
+
+# ── Detect input format ───────────────────────────────────────────────────────
+if [[ "$INPUT" == *.bag ]]; then
+    BAG_FILE="$(realpath "$INPUT")"
+    BAG_DIR="$(dirname "$BAG_FILE")"
+    BAG_NAME="$(basename "$BAG_FILE" .bag)"
+    ROS2_BAG_DIR="$BAG_DIR/${BAG_NAME}_ros2"
+
+    if [ ! -f "$BAG_FILE" ]; then
+        echo "ERROR: ROS1 bag file not found: $BAG_FILE"
+        exit 1
+    fi
+
+    if [ -d "$ROS2_BAG_DIR" ]; then
+        echo "[Pre-step] ROS2 bag already exists at $ROS2_BAG_DIR — skipping conversion."
+    else
+        echo "[Pre-step] Converting ROS1 bag → ROS2 format..."
+        echo "  Source : $BAG_FILE"
+        echo "  Output : $ROS2_BAG_DIR"
+        echo ""
+
+        docker run --rm \
+            -v "$BAG_DIR":/data \
+            "$IMAGE" \
+            rosbags-convert --src /data/${BAG_NAME}.bag --dst /data/${BAG_NAME}_ros2 &
+        CONV_PID=$!
+
+        echo -n "  Progress: "
+        while kill -0 "$CONV_PID" 2>/dev/null; do
+            if [ -d "$ROS2_BAG_DIR" ]; then
+                SIZE=$(du -sh "$ROS2_BAG_DIR" 2>/dev/null | cut -f1)
+                echo -ne "\r  Progress: ${SIZE} written   "
+            else
+                echo -ne "\r  Progress: starting...      "
+            fi
+            sleep 2
+        done
+        wait "$CONV_PID"
+        echo -e "\r  Progress: done                "
+
+        echo "  -> ROS2 bag saved to $ROS2_BAG_DIR"
+    fi
+else
+    BAG_DIR="$(realpath "$INPUT")"
 fi
 
 BAG_PATH="$BAG_DIR/log_02_ros2"
@@ -43,10 +98,11 @@ echo "[Step 1/4] Extracting ground truth CSV from bag..."
 docker run --rm \
     -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
     -v "$BAG_DIR":/data \
+    -v "$UTILS_DIR":/colcon_ws/utils \
     -v "$OUT_DIR":/colcon_ws/utils/results \
     "$IMAGE" \
     python3 utils/extract_gt_csv.py \
-        /data/log_02_ros2/log_02_ros2_0.db3 \
+        /data/log_02_ros2 \
         utils/results/gt_log02.csv
 echo "  -> GT CSV saved to $OUT_DIR/gt_log02.csv"
 echo ""
@@ -92,6 +148,7 @@ read -r
 echo "Running evaluation and generating plots..."
 docker run --rm \
     -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+    -v "$UTILS_DIR":/colcon_ws/utils \
     -v "$OUT_DIR":/colcon_ws/utils/results \
     "$IMAGE" \
     bash -c "

@@ -19,16 +19,18 @@ git clone https://github.com/UditSinghParihar/tbuggy_localization.git colcon_ws_
 cd colcon_ws_tii
 chmod +x utils/docker_run_log01.sh utils/docker_run_log02.sh
 
-# Run log_01 (provide path to your bag directory)
-./utils/docker_run_log01.sh /path/to/bags ./output
+# Run log_01 — pass the ROS1 .bag file directly (auto-converted inside Docker)
+./utils/docker_run_log01.sh /path/to/log_01.bag ./output
 
 # Run log_02
-./utils/docker_run_log02.sh /path/to/bags ./output
+./utils/docker_run_log02.sh /path/to/log_02.bag ./output
 ```
 
 The scripts guide you through each step interactively. Results are saved to `./output/` on your host.
 
-> **Note:** The bag directory must contain `log_01_ros2/` and `log_02_ros2/` subdirectories.
+> **ROS1 bags:** If you have the original `.bag` files, pass them directly — the script converts them to ROS2 format automatically using `rosbags-convert` inside the container. The converted directory (e.g. `log_01_ros2/`) is saved next to the `.bag` file and reused on subsequent runs.
+
+> **ROS2 bags:** You can also pass a directory containing `log_01_ros2/` / `log_02_ros2/` subdirectories: `./utils/docker_run_log01.sh /path/to/bags ./output`
 
 > **RViz (Linux only):** Before running the OpenVINS launch command printed in Step 2, run `xhost +local:docker` once in your terminal to allow the container to open a display window.
 

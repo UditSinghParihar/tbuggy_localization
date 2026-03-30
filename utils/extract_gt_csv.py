@@ -8,46 +8,89 @@ OpenVINS expects a 17-column CSV (EuRoC ASL format):
 /tbuggy/odom provides position + orientation + twist (linear velocity).
 Biases are unknown from odom — set to zero (only affects RMSE printout, not VIO estimation).
 
+Accepts either a bag directory (reads db3 paths from metadata.yaml) or a direct .db3 path.
+
 Usage:
-  python3 extract_gt_csv.py /home/udit/data/log_01_ros2/log_01_ros2_0.db3 \
-                            /home/udit/codes/tii_assignment/colcon_ws_tii/utils/results/gt_log01.csv
-  python3 extract_gt_csv.py /home/udit/data/log_02_ros2/log_02_ros2_0.db3 \
-                            /home/udit/codes/tii_assignment/colcon_ws_tii/utils/results/gt_log02.csv
+  python3 extract_gt_csv.py /data/log_01_ros2 utils/results/gt_log01.csv
+  python3 extract_gt_csv.py /data/log_02_ros2 utils/results/gt_log02.csv
 """
 
+import os
 import sys
 import sqlite3
 import csv
+import yaml
 from rosbags.typesys import get_typestore, Stores
+
+
+def resolve_db3_paths(input_path: str) -> list[str]:
+    """Accept a bag directory or a direct .db3 file; return list of .db3 paths."""
+    if input_path.endswith(".db3"):
+        return [input_path]
+
+    metadata_path = os.path.join(input_path, "metadata.yaml")
+    if not os.path.exists(metadata_path):
+        print(f"ERROR: {metadata_path} not found")
+        sys.exit(1)
+
+    with open(metadata_path) as f:
+        meta = yaml.safe_load(f)
+
+    rel_paths = meta["rosbag2_bagfile_information"]["relative_file_paths"]
+    db3_paths = []
+    for rel in rel_paths:
+        full = os.path.join(input_path, rel)
+        if not os.path.exists(full):
+            print(f"ERROR: db3 file not found: {full}")
+            sys.exit(1)
+        if os.path.getsize(full) == 0:
+            print(f"  Skipping empty file: {full}")
+            continue
+        db3_paths.append(full)
+
+    if not db3_paths:
+        print(f"ERROR: no valid db3 files found in {input_path}")
+        sys.exit(1)
+
+    return db3_paths
 
 TOPIC_NAME = "/tbuggy/odom"
 MSG_TYPE   = "nav_msgs/msg/Odometry"
 
 
-def extract_gt(db3_path: str, out_csv: str):
+def extract_gt(bag_input: str, out_csv: str):
     store = get_typestore(Stores.ROS2_HUMBLE)
 
-    con = sqlite3.connect(db3_path)
-    cur = con.cursor()
+    db3_paths = resolve_db3_paths(bag_input)
 
-    # Find topic id
-    cur.execute("SELECT id FROM topics WHERE name = ?", (TOPIC_NAME,))
-    row = cur.fetchone()
-    if row is None:
-        print(f"ERROR: topic '{TOPIC_NAME}' not found in {db3_path}")
+    rows = []
+    for db3_path in db3_paths:
+        con = sqlite3.connect(db3_path)
+        cur = con.cursor()
+
+        cur.execute("SELECT id FROM topics WHERE name = ?", (TOPIC_NAME,))
+        row = cur.fetchone()
+        if row is None:
+            print(f"  No topic '{TOPIC_NAME}' in {db3_path} — skipping")
+            con.close()
+            continue
+        topic_id = row[0]
+
+        cur.execute(
+            "SELECT timestamp, data FROM messages WHERE topic_id = ? ORDER BY timestamp",
+            (topic_id,)
+        )
+        chunk = cur.fetchall()
         con.close()
+        print(f"  {len(chunk)} odom messages in {os.path.basename(db3_path)}")
+        rows.extend(chunk)
+
+    if not rows:
+        print(f"ERROR: no odom messages found")
         sys.exit(1)
-    topic_id = row[0]
 
-    # Fetch all messages ordered by timestamp
-    cur.execute(
-        "SELECT timestamp, data FROM messages WHERE topic_id = ? ORDER BY timestamp",
-        (topic_id,)
-    )
-    rows = cur.fetchall()
-    con.close()
-
-    print(f"Found {len(rows)} odom messages in {db3_path}")
+    rows.sort(key=lambda r: r[0])
+    print(f"Found {len(rows)} odom messages total")
 
     with open(out_csv, "w", newline="") as f:
         writer = csv.writer(f)
@@ -96,3 +139,4 @@ if __name__ == "__main__":
         print(__doc__)
         sys.exit(1)
     extract_gt(sys.argv[1], sys.argv[2])
+
