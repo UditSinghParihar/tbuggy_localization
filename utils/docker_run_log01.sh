@@ -17,7 +17,7 @@ set -e
 
 IMAGE="uditsinghparihar/tbuggy_vio:latest"
 INPUT="${1:-}"
-OUT_DIR="${2:-$(pwd)/output}"
+OUT_DIR="$(realpath -m "${2:-$(pwd)/output}")"
 # Resolve the utils/ directory next to this script so updated Python scripts
 # are mounted into the container (no image rebuild needed after script changes).
 UTILS_DIR="$(dirname "$(realpath "$0")")"
@@ -70,8 +70,17 @@ if [[ "$INPUT" == *.bag ]]; then
         wait "$CONV_PID"
         echo -e "\r  Progress: done                "
 
+        # Fix metadata.yaml: rosbags-convert writes offered_qos_profiles as a
+        # YAML list [] but ros2 bag play's yaml-cpp expects a string value.
+        sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
+            "$ROS2_BAG_DIR/metadata.yaml"
+
         echo "  -> ROS2 bag saved to $ROS2_BAG_DIR"
     fi
+
+    # Patch in case bag was converted in a previous run without the fix.
+    sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
+        "$ROS2_BAG_DIR/metadata.yaml" 2>/dev/null || true
 else
     BAG_DIR="$(realpath "$INPUT")"
 fi

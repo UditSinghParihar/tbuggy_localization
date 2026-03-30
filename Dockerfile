@@ -36,12 +36,14 @@ RUN apt-get update && apt-get install -y \
 # ── Layer 2: Python packages ─────────────────────────────────────────────────
 # rosbags: read ROS2 .db3 bags without a running ROS2 node (used by all utils/)
 # evo:     trajectory evaluation (evo_ape, evo_rpe)
+# numpy+scipy installed together so scipy wheels match the numpy ABI;
+# avoids the system scipy/pip-numpy binary incompatibility.
 RUN pip3 install --no-cache-dir \
     rosbags \
-    evo \
-    numpy \
     matplotlib \
-    scipy
+    "numpy<1.25.0" \
+    scipy \
+    evo
 
 # ── Layer 3: Clone repo + submodule ──────────────────────────────────────────
 # Pulls parent repo + open_vins submodule (your fork with v3 tuning configs).
