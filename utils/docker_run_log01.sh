@@ -57,18 +57,22 @@ if [[ "$INPUT" == *.bag ]]; then
             rosbags-convert --src /data/${BAG_NAME}.bag --dst /data/${BAG_NAME}_ros2 &
         CONV_PID=$!
 
+        EXPECTED_BYTES=102723860454  # log_01_ros2 expected size (96G)
         echo -n "  Progress: "
         while kill -0 "$CONV_PID" 2>/dev/null; do
             if [ -d "$ROS2_BAG_DIR" ]; then
+                CURRENT=$(du -sb "$ROS2_BAG_DIR" 2>/dev/null | cut -f1)
                 SIZE=$(du -sh "$ROS2_BAG_DIR" 2>/dev/null | cut -f1)
-                echo -ne "\r  Progress: ${SIZE} written   "
+                PCT=$(( CURRENT * 100 / EXPECTED_BYTES ))
+                [ "$PCT" -gt 100 ] && PCT=100
+                echo -ne "\r  Progress: ${PCT}%  (${SIZE} / 96G written)   "
             else
-                echo -ne "\r  Progress: starting...      "
+                echo -ne "\r  Progress: starting...                        "
             fi
             sleep 2
         done
         wait "$CONV_PID"
-        echo -e "\r  Progress: done                "
+        echo -e "\r  Progress: 100%  (96G / 96G written) — done          "
 
         # Fix metadata.yaml inside Docker (directory is owned by root from conversion).
         # rosbags-convert writes offered_qos_profiles as YAML list [] but
