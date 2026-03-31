@@ -68,6 +68,20 @@
 
 \vspace{2pt}\hrule\vspace{8pt}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{log_02_end_rviz.png}
+  \caption{\textbf{Teaser --- OpenVINS on log\_02, end of sequence.}
+  \textit{Left panels:} RViz2 camera views --- top shows KLT feature tracks (red dots = active
+  MSCKF features, green lines = track history) on the hangar facade; bottom shows SLAM landmark
+  projections (blue circles) reprojected onto the current frame; \texttt{ZUPT} label indicates
+  a zero-velocity update is active.
+  \textit{Right panel:} Accumulated 3D world view --- green line is the full estimated
+  trajectory (716\,m oval loop), red point cloud is the active SLAM landmark map, grey grid
+  is the ground plane. The vehicle has returned near its start position after completing the loop.}
+  \label{fig:teaser}
+\end{figure}
+
 \noindent\textbf{Abstract.}
 We implement a monocular visual-inertial odometry (VIO) pipeline on a desert UGV dataset using
 OpenVINS 2.7 (MSCKF). Starting from bag-extracted sensor calibration data, we configure and tune
@@ -363,22 +377,14 @@ keeps the stable init settings while maximising SLAM feature count and detection
 
 \subsection{log\_01 Results (Tuning Sequence)}
 
-% TODO: Insert RViz screenshot showing feature tracks + live VIO path overlaid on GT
-% Suggested filename: utils/results/rviz_log01.png
-% Placeholder size below reserved; remove the \vspace and add:
-%   \includegraphics[width=\textwidth]{rviz_log01.png}
-%   \caption{RViz2 --- OpenVINS feature tracks (green) and live path estimate vs GT (white).}
 \begin{figure}[H]
   \centering
-  \framebox[\textwidth]{\parbox[c][4.5cm][c]{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{%
-    \centering\color{gray}
-    \textbf{\% TODO: RViz screenshot}\\[4pt]
-    Capture from RViz2 while OpenVINS runs on log\_01.\\
-    Shows: feature tracks (green points), live path estimate vs GT.\\
-    Save as \texttt{utils/results/rviz\_log01.png} and replace this box with:\\
-    \texttt{\textbackslash includegraphics[width=\textbackslash textwidth]\{rviz\_log01.png\}}
-  }}
-  \caption{RViz2 view --- RESERVED for user-captured screenshot during OpenVINS run.}
+  \includegraphics[width=\textwidth]{rviz_log01.png}
+  \caption{RViz2 --- OpenVINS running on log\_01 (desert traverse). Left: camera panel showing
+  sparse KLT feature tracks on the featureless sand/horizon; ZUPT active (label top-left).
+  Right: accumulated trajectory (green) showing the 1059\,m lateral-undulation path. Feature
+  scarcity on sand is the primary cause of scale drift in this sequence.}
+  \label{fig:rviz_log01}
 \end{figure}
 
 \begin{figure}[H]
@@ -436,6 +442,29 @@ t = 330--430\,s& 3 $\to$ 40\,m   & Desert again; moderate drift, ends cleanly \\
 \end{table}
 
 \subsection{log\_02 Results (Robustness --- No Re-Tuning)}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{log_02_start_rviz.png}
+    \caption{\textbf{Start} (t\,$\approx$\,0\,s) --- vehicle stationary in front of hangar.
+    Camera panel (top): feature tracks (red = MSCKF, blue = SLAM) densely packed on building
+    facade, vehicles, and ground plane --- ideal initialization conditions.
+    3D view (right): SLAM landmark cloud already building; trajectory just beginning (green dot).}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{log_02_end_rviz.png}
+    \caption{\textbf{End} (t\,$\approx$\,307\,s) --- vehicle returned near hangar after
+    completing the 716\,m oval loop. Camera panel: ZUPT active (top-left label), rich feature
+    tracks on hangar facade again. 3D view: full loop trajectory (green line) with landmark
+    cluster at the return point. No loop closure --- the loop gap is visible.}
+  \end{subfigure}
+  \caption{RViz2 --- log\_02 start vs end. The contrast illustrates how hangar features anchor
+  the filter at both ends of the sequence, while the featureless desert section (mid-loop)
+  causes the unrecovered heading and scale drift.}
+  \label{fig:rviz_log02}
+\end{figure}
 
 \begin{figure}[H]
   \centering
