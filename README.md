@@ -6,6 +6,22 @@ Results, evaluation plots, and full methodology are documented in [`utils/docume
 
 ---
 
+## Feature Tracking — Live Demo
+
+### log\_02: VIO initialising at hangar (rich near-field texture)
+
+![log02 start — feature tracks at hangar](utils/results/log02_start_features.gif)
+
+### log\_02: Feature tracks during U-turn in the desert
+
+![log02 U-turn — feature tracks during turn](utils/results/log02_turn_features.gif)
+
+> Green dots = KLT-tracked MSCKF features. The hangar provides dense, stable tracks that
+> anchor scale and heading. Feature count drops during the featureless desert section,
+> causing the scale drift visible in the quantitative results.
+
+---
+
 ## Quickstart — Docker (Recommended)
 
 The easiest way to reproduce results. Requires only Docker + the bag files.
