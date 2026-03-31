@@ -70,15 +70,15 @@
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{log_02_end_rviz.png}
-  \caption{\textbf{Teaser --- OpenVINS on log\_02, end of sequence.}
+  \includegraphics[width=\textwidth]{log_02_start_rviz.png}
+  \caption{\textbf{Teaser --- OpenVINS on log\_02, start of sequence.}
   \textit{Left panels:} RViz2 camera views --- top shows KLT feature tracks (red dots = active
-  MSCKF features, green lines = track history) on the hangar facade; bottom shows SLAM landmark
-  projections (blue circles) reprojected onto the current frame; \texttt{ZUPT} label indicates
-  a zero-velocity update is active.
-  \textit{Right panel:} Accumulated 3D world view --- green line is the full estimated
-  trajectory (716\,m oval loop), red point cloud is the active SLAM landmark map, grey grid
-  is the ground plane. The vehicle has returned near its start position after completing the loop.}
+  MSCKF features, green lines = track history) on the hangar facade and parked vehicles;
+  bottom shows SLAM landmark projections (blue circles) reprojected onto the current frame,
+  densely covering the building facade and ground plane.
+  \textit{Right panel:} 3D world view at initialisation --- red point cloud is the SLAM landmark
+  map already forming from the rich hangar texture; grey grid is the ground plane; short green
+  arc is the trajectory so far (vehicle just departed).}
   \label{fig:teaser}
 \end{figure}
 
@@ -111,11 +111,14 @@ log\_02 & 336.7\,s & 10\,091 & 33\,648 & 13\,467 &  716\,m \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Topics used:}
-\texttt{/tbuggy/camera\_front/image\_raw} (monocular, 1920$\times$1080, $\approx$28\,Hz),
-\texttt{/tbuggy/imu\_ins} ($\approx$100\,Hz),
-\texttt{/tbuggy/odom} (ground truth, $\approx$40\,Hz).
-GPS (\texttt{/tbuggy/fix}) and TF data are used only for calibration extraction.
+\noindent\textbf{Topics used by the pipeline:}
+\begin{itemize}[nosep]
+  \item \texttt{/tbuggy/camera\_front/image\_raw} --- monocular image stream for feature tracking (1920$\times$1080, $\approx$28\,Hz)
+  \item \texttt{/tbuggy/imu\_ins} --- IMU pre-integration; offline noise characterisation for calibration ($\approx$100\,Hz)
+  \item \texttt{/tbuggy/odom} --- ground truth for ATE/RPE evaluation ($\approx$40\,Hz)
+  \item \texttt{/tf\_static} --- TF chain for camera-IMU extrinsic $\mathbf{T}_{\text{imu,cam}}$
+\end{itemize}
+\texttt{/tbuggy/fix} (GPS) and \texttt{/tbuggy/relative\_odom} are present in the bag but were \textbf{not used} --- GPS was not needed since \texttt{/tbuggy/odom} provides sufficient ground truth for evaluation.
 
 \subsection{Ground Truth Trajectories}
 
@@ -138,8 +141,7 @@ GPS (\texttt{/tbuggy/fix}) and TF data are used only for calibration extraction.
 
 \subsection{Camera Intrinsics}
 
-Extracted programmatically from the first \texttt{/tbuggy/camera\_front/camera\_info} message
-(script: \texttt{utils/extract\_tf\_and\_imu.py}):
+Extracted programmatically from the first \texttt{/tbuggy/camera\_front/camera\_info} message:
 
 \begin{table}[H]
 \centering
@@ -158,8 +160,14 @@ $c_y$ &  448.679 & $p_2$ & $+0.0011$ \\
 
 \subsection{Camera-IMU Extrinsics}
 
-The TF chain was traced from \texttt{base\_footprint} via the Ouster/lidar frames to
-\texttt{tbuggy/camera\_front}, and separately to \texttt{tbuggy/sensor\_wgs84} (IMU).
+The extrinsic was computed by chaining \texttt{/tf\_static} transforms:
+
+\begin{lstlisting}
+base_footprint -> os1/os_sensor -> os2/os_sensor -> camera_front   (camera path)
+base_footprint -> sensor_wgs84                                      (IMU path)
+T_imu_cam = inv(T_bf_imu) @ T_bf_cam
+\end{lstlisting}
+
 The resulting $\mathbf{T}_{\text{imu,cam}}$ is:
 
 \begin{equation*}
@@ -185,15 +193,34 @@ the robot's forward direction ($+X$), as expected.
   \label{fig:imu}
 \end{figure}
 
-The measured noise densities (max-axis, $\div\!\sqrt{100}$) are scaled by $\times 2$ safety margin
-for in-motion vibration on rough desert terrain:
+From the stationary window, the standard deviation of each axis is computed from the raw
+accelerometer and gyroscope samples in \texttt{/tbuggy/imu\_ins}.
+Noise density (continuous-time white noise spectral density) and random walk are then derived as:
+
+\begin{equation}
+\sigma_{\text{nd}} = \frac{\sigma_{\text{axis}}}{\sqrt{f_s}}, \qquad
+\sigma_{\text{rw}} = \sigma_{\text{nd}} \times 0.1
+\end{equation}
+
+\noindent where $\sigma_{\text{axis}}$ is the per-axis standard deviation of the IMU samples
+during the stationary window and $f_s = 100\,\text{Hz}$ is the IMU sample rate.
+The worst-case axis is taken (accel-Z = 0.371\,m/s$^2$, gyro-X = 8.36\,\text{mrad/s}),
+then multiplied by $\times 2$ as a safety margin to account for additional vibration during motion:
+
+\begin{equation}
+\sigma_{\text{nd}}^{\text{accel}} = \frac{0.371}{\sqrt{100}} \times 2 \approx 7.4 \times 10^{-2}\ \text{m/s}^2/\sqrt{\text{Hz}},
+\qquad
+\sigma_{\text{nd}}^{\text{gyro}}  = \frac{8.36 \times 10^{-3}}{\sqrt{100}} \times 2 \approx 1.7 \times 10^{-3}\ \text{rad/s}/\sqrt{\text{Hz}}
+\end{equation}
+
+\noindent The final values written to \texttt{kalibr\_imu\_chain.yaml} are:
 
 \begin{center}
 \small
-\texttt{accel\_noise\_density = 7.4e-2 m/s$^2$/\hspace{0pt}$\sqrt{\text{Hz}}$}\quad
-\texttt{accel\_random\_walk = 7.4e-3 m/s$^3$/\hspace{0pt}$\sqrt{\text{Hz}}$}\quad
-\texttt{gyro\_noise\_density = 1.7e-3 rad/s/\hspace{0pt}$\sqrt{\text{Hz}}$}\quad
-\texttt{gyro\_random\_walk = 1.7e-4 rad/s$^2$/\hspace{0pt}$\sqrt{\text{Hz}}$}
+\texttt{accel\_noise\_density = 7.4e-2 m/s$^2$/$\sqrt{\text{Hz}}$}\quad
+\texttt{accel\_random\_walk = 7.4e-3 m/s$^3$/$\sqrt{\text{Hz}}$}\quad
+\texttt{gyro\_noise\_density = 1.7e-3 rad/s/$\sqrt{\text{Hz}}$}\quad
+\texttt{gyro\_random\_walk = 1.7e-4 rad/s$^2$/$\sqrt{\text{Hz}}$}
 \end{center}
 
 % ===========================================================
@@ -246,7 +273,7 @@ All steps run inside the provided Docker container, orchestrated by
 
 \subsection{Key Configuration Changes}
 
-Config files are in \texttt{src/open\_vins/config/tbuggy/} (three YAML files):
+Config files are in \texttt{src/open\_vins/config/tbuggy/}:
 \texttt{estimator\_config.yaml}, \texttt{kalibr\_imu\_chain.yaml},
 \texttt{kalibr\_imucam\_chain.yaml}.
 
@@ -313,20 +340,6 @@ RUN bash -c "source /opt/ros/humble/setup.bash && \
     MAKEFLAGS='-j4' colcon build --executor sequential"
 \end{lstlisting}
 
-\noindent\textbf{Notable engineering decisions:}
-\begin{itemize}[nosep]
-  \item \textbf{ROS1 auto-conversion}: The run scripts detect a \texttt{.bag} input and call
-    \texttt{rosbags-convert} automatically; the ROS2 directory is reused on subsequent runs.
-  \item \textbf{QoS metadata patch}: \texttt{rosbags-convert} writes
-    \texttt{offered\_qos\_profiles: []} (YAML list) but \texttt{ros2 bag play}'s yaml-cpp
-    parser expects a string. The scripts apply a \texttt{sed} patch automatically.
-  \item \textbf{Utils mount}: Host \texttt{utils/} is mounted into the container
-    (\texttt{-v \$UTILS\_DIR:/colcon\_ws/utils}) so Python script updates take effect
-    without rebuilding the image.
-  \item \textbf{CycloneDDS}: Selected over FastDDS for shared-memory transport between
-    two containers on the same host (\texttt{RMW\_IMPLEMENTATION=rmw\_cyclonedds\_cpp}).
-\end{itemize}
-
 \subsection{Utility Scripts}
 
 All scripts live in \texttt{utils/} and operate without a running ROS2 node:
@@ -350,6 +363,23 @@ Script & Purpose \\
 % ===========================================================
 \section{Testing \& Analysis}
 % ===========================================================
+
+\subsection{Key Performance Indicators}
+
+Four metrics are used to evaluate the system:
+
+\begin{itemize}[nosep]
+  \item \textbf{ATE RMSE} (Absolute Trajectory Error) --- global position accuracy over the
+    full trajectory after Sim3 alignment. Primary metric; directly captures accumulated drift.
+  \item \textbf{Path \% error} (ATE RMSE / path length) --- normalises ATE by path length,
+    making results comparable across sequences of different lengths.
+  \item \textbf{RPE at 10\,m baseline} (Relative Pose Error) --- local accuracy over short
+    segments, insensitive to initialisation errors. Captures moment-to-moment tracking quality,
+    relevant for UGV path following.
+  \item \textbf{Sim3 scale} --- the scale factor from Umeyama alignment quantifies how much
+    the estimated path length deviates from ground truth, a key indicator of monocular scale
+    drift.
+\end{itemize}
 
 \subsection{Tuning History}
 
@@ -458,7 +488,9 @@ t = 330--430\,s& 3 $\to$ 40\,m   & Desert again; moderate drift, ends cleanly \\
     \caption{\textbf{End} (t\,$\approx$\,307\,s) --- vehicle returned near hangar after
     completing the 716\,m oval loop. Camera panel: ZUPT active (top-left label), rich feature
     tracks on hangar facade again. 3D view: full loop trajectory (green line) with landmark
-    cluster at the return point. No loop closure --- the loop gap is visible.}
+    cluster at the return point. No loop closure --- the loop gap is visible.
+    OpenVINS's companion \texttt{ov\_secondary} pose graph supports DBoW2-based place
+    recognition, but its ROS2 port is incomplete and was not incorporated.}
   \end{subfigure}
   \caption{RViz2 --- log\_02 start vs end. The contrast illustrates how hangar features anchor
   the filter at both ends of the sequence, while the featureless desert section (mid-loop)
@@ -538,9 +570,17 @@ caused by the scale drift accumulating over the 700\,m loop without loop closure
 
 \begin{itemize}[nosep]
   \item \textbf{No loop closure}: OpenVINS is a sliding-window EKF --- state holds only the
-    last 15 poses. By the time the vehicle returns to the hangar in log\_02
-    ($\sim$300\,s later), all early SLAM features have been marginalized. No place
-    recognition is possible, resulting in unrecovered drift after the desert loop.
+    last 15 poses. All early SLAM features are marginalized long before the vehicle revisits
+    the hangar in log\_02 ($\sim$300\,s later), so no re-observation is possible.
+
+    The RPng group (OpenVINS authors) maintain a companion package \texttt{ov\_secondary}
+    that adds a secondary pose graph with DBoW2 visual bag-of-words place recognition.
+    When a revisited location is detected, a loop closure constraint is inserted into the
+    graph, correcting accumulated drift. On log\_02 this would likely close the
+    $\sim$46\,m loop gap visible in Fig.~\ref{fig:rviz_log02}. However,
+    \texttt{ov\_secondary} is a ROS1 package with no stable ROS2 port as of Humble ---
+    integrating it would require either a ROS1 bridge or a full port, which was out of
+    scope for this assignment.
   \item \textbf{Scale drift}: Sim3 scale = 0.717 (log\_01) and 0.592 (log\_02) indicate
     VIO over-estimates path length. This is fundamental to monocular VIO in environments
     with long featureless stretches --- IMU alone cannot maintain scale without visual
@@ -553,16 +593,12 @@ caused by the scale drift accumulating over the 700\,m loop without loop closure
 \subsection{Engineering Challenges Resolved}
 
 \begin{itemize}[nosep]
-  \item \textbf{db3 naming}: \texttt{rosbags-convert} produces
-    \texttt{log\_01\_ros2.db3} (no \texttt{\_0} suffix), unlike \texttt{ros2 bag record}.
-    \texttt{extract\_gt\_csv.py} was rewritten to read filenames from
-    \texttt{metadata.yaml} rather than using a hardcoded suffix.
-  \item \textbf{QoS YAML bug}: \texttt{rosbags-convert} writes
-    \texttt{offered\_qos\_profiles: []} (YAML list) but \texttt{ros2 bag play}'s yaml-cpp
-    expects a string value \texttt{''}. All run scripts apply a \texttt{sed} patch.
-  \item \textbf{numpy/scipy ABI mismatch}: \texttt{pip} numpy 2.2.6 is incompatible
-    with system scipy binaries. Fixed by pinning \texttt{numpy<1.25.0} in the Dockerfile
-    before installing scipy and evo.
+  \item \textbf{Cross-container ROS2 topic communication}: FastDDS multicast-based
+    participant discovery fails when two \texttt{--network=host} containers share the same
+    loopback interface --- topic metadata is exchanged but data packets do not reach the
+    subscriber. Resolved by switching both containers to CycloneDDS
+    (\texttt{RMW\_IMPLEMENTATION=rmw\_cyclonedds\_cpp}), which uses shared memory
+    transport on the same host.
 \end{itemize}
 
 \subsection{Future Improvements}
