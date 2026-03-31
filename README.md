@@ -42,13 +42,19 @@ chmod +x utils/docker_run_log01.sh utils/docker_run_log02.sh
 ./utils/docker_run_log02.sh /path/to/log_02.bag ./output
 ```
 
-The scripts guide you through each step interactively. Results are saved to `./output/` on your host.
+**The script is interactive — here is what happens step by step:**
 
-> **ROS1 bags:** If you have the original `.bag` files, pass them directly — the script converts them to ROS2 format automatically using `rosbags-convert` inside the container. The converted directory (e.g. `log_01_ros2/`) is saved next to the `.bag` file and reused on subsequent runs.
+1. **(Auto)** Converts the ROS1 `.bag` to ROS2 format if not already done (shows progress %).
+2. **(Auto)** Extracts ground truth CSV from the bag.
+3. **Terminal A** — the script prints a `docker run` command to launch OpenVINS + RViz. Copy and run it in a new terminal.
+4. **Terminal B** — the script prints a second `docker run` command to play the bag. Copy and run it in another new terminal.
+5. Wait for the bag playback to finish, then **press Enter in the original terminal** to trigger evaluation — ATE/RPE metrics and trajectory plots are saved to `./output/`.
 
-> **ROS2 bags:** You can also pass a directory containing `log_01_ros2/` / `log_02_ros2/` subdirectories: `./utils/docker_run_log01.sh /path/to/bags ./output`
+> **ROS1 bags:** The converted directory (e.g. `log_01_ros2/`) is saved next to the `.bag` file and reused on subsequent runs — conversion is skipped automatically.
 
-> **RViz (Linux only):** Before running the OpenVINS launch command printed in Step 2, run `xhost +local:docker` once in your terminal to allow the container to open a display window.
+> **ROS2 bags:** You can also pass a directory directly: `./utils/docker_run_log01.sh /path/to/bags ./output`
+
+> **RViz (Linux only):** Run `xhost +local:docker` once before launching Terminal A to allow the container to open a display window.
 
 ---
 
