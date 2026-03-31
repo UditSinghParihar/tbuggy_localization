@@ -70,17 +70,24 @@ if [[ "$INPUT" == *.bag ]]; then
         wait "$CONV_PID"
         echo -e "\r  Progress: done                "
 
-        # Fix metadata.yaml: rosbags-convert writes offered_qos_profiles as a
-        # YAML list [] but ros2 bag play's yaml-cpp expects a string value.
-        sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
-            "$ROS2_BAG_DIR/metadata.yaml"
+        # Fix metadata.yaml inside Docker (directory is owned by root from conversion).
+        # rosbags-convert writes offered_qos_profiles as YAML list [] but
+        # ros2 bag play's yaml-cpp expects a string value.
+        docker run --rm \
+            -v "$BAG_DIR":/data \
+            "$IMAGE" \
+            sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
+                /data/${BAG_NAME}_ros2/metadata.yaml
 
         echo "  -> ROS2 bag saved to $ROS2_BAG_DIR"
     fi
 
     # Patch in case bag was converted in a previous run without the fix.
-    sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
-        "$ROS2_BAG_DIR/metadata.yaml" 2>/dev/null || true
+    docker run --rm \
+        -v "$BAG_DIR":/data \
+        "$IMAGE" \
+        sed -i "s/offered_qos_profiles: \[\]/offered_qos_profiles: ''/g" \
+            /data/${BAG_NAME}_ros2/metadata.yaml 2>/dev/null || true
 else
     BAG_DIR="$(realpath "$INPUT")"
 fi

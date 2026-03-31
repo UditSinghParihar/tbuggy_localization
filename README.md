@@ -2,7 +2,7 @@
 
 Monocular Visual-Inertial Odometry pipeline for the **tbuggy** outdoor desert UGV using [OpenVINS 2.7](https://github.com/rpng/open_vins) on ROS2 Humble.
 
-Results, evaluation plots, and full methodology are documented in [`utils/documentation.md`](utils/documentation.md).
+Results, evaluation plots, and full methodology are in the [technical report (PDF)](assignment_solution.pdf).
 
 ---
 
